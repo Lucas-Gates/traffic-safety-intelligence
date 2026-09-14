@@ -118,18 +118,13 @@ PERSON_COLUMNS = [
     "DOANAME"
 ]
 
-
 def transform_file(filename, columns, output_name):
     input_path = os.path.join(RAW_DIR, filename)
     output_path = os.path.join(PROCESSED_DIR, output_name)
-
     df = pd.read_csv(input_path, encoding="latin1", low_memory=False)
     df = df[columns]
-
     df.to_csv(output_path, index=False)
-
     print(f"{output_name}: {len(df)} rows")
-
 
 def main():
     os.makedirs(PROCESSED_DIR, exist_ok=True)
@@ -151,7 +146,6 @@ def main():
         PERSON_COLUMNS,
         "people.csv"
     )
-
 
 if __name__ == "__main__":
     main()
