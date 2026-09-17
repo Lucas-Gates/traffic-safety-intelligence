@@ -1,5 +1,6 @@
 import os
 import mysql.connector
+import numpy as np
 import pandas as pd
 from dotenv import load_dotenv
 
@@ -23,11 +24,15 @@ def insert_dataframe(conn, table_name, df, batch_size=2000):
     columns = [col.lower() for col in df.columns]
     col_str = ", ".join([f"`{c}`" for c in columns])
     placeholders = ", ".join(["%s"] * len(columns))
-    
     query = f"INSERT INTO `{table_name}` ({col_str}) VALUES ({placeholders})"
-    records = df.where(pd.notnull(df), None).values.tolist()
-    total = len(records)
 
+    cleaned_df = df.replace({np.nan: None})
+    records = [
+        [None if (isinstance(val, float) and np.isnan(val)) else val for val in row]
+        for row in cleaned_df.to_numpy()
+    ]
+    
+    total = len(records)
     print(f"Loading {total} records into '{table_name}'...")
 
     for i in range(0, total, batch_size):
@@ -37,7 +42,6 @@ def insert_dataframe(conn, table_name, df, batch_size=2000):
 
     cursor.close()
     print(f"Successfully loaded '{table_name}'.")
-
 
 def main():
     conn = get_connection()
