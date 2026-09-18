@@ -52,3 +52,22 @@ def get_state_rankings(limit: int = Query(15, ge=1, le=55), db=Depends(get_db)):
     rows = cursor.fetchall()
     cursor.close()
     return rows
+
+@app.get("/api/analytics/hourly-trends")
+def get_hourly_trends(db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    query = """
+        SELECT 
+            hour,
+            SUM(CASE WHEN rur_urb = 1 THEN 1 ELSE 0 END) AS rural_crashes,
+            SUM(CASE WHEN rur_urb = 2 THEN 1 ELSE 0 END) AS urban_crashes,
+            COUNT(*) AS total_crashes
+        FROM crashes
+        WHERE hour BETWEEN 0 AND 23
+        GROUP BY hour
+        ORDER BY hour ASC;
+    """
+    cursor.execute(query)
+    rows = cursor.fetchall()
+    cursor.close()
+    return rows
