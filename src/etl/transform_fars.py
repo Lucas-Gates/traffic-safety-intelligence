@@ -1,8 +1,10 @@
+import glob
 import os
 import pandas as pd
 
-RAW_DIR = "data/raw/fars_2024/FARS2024NationalCSV"
+RAW_DIR = "data/raw"
 PROCESSED_DIR = "data/processed"
+YEARS = [2020, 2021, 2022, 2023, 2024]
 
 CRASH_COLUMNS = [
     "STATE",
@@ -118,34 +120,37 @@ PERSON_COLUMNS = [
     "DOANAME"
 ]
 
-def transform_file(filename, columns, output_name):
-    input_path = os.path.join(RAW_DIR, filename)
-    output_path = os.path.join(PROCESSED_DIR, output_name)
-    df = pd.read_csv(input_path, encoding="latin1", low_memory=False)
-    df = df[columns]
-    df.to_csv(output_path, index=False)
-    print(f"{output_name}: {len(df)} rows")
+def find_file(year, base_name):
+    pattern = os.path.join(RAW_DIR, f"fars_{year}", "**", f"*{base_name}*")
+    matches = glob.glob(pattern, recursive=True)
+    for m in matches:
+        if m.lower().endswith(f"{base_name.lower()}.csv"):
+            return m
+    return None
+
+def process_entity(base_name, target_cols, output_name):
+    dfs = []
+    for yr in YEARS:
+        file_path = find_file(yr, base_name)
+        if file_path:
+            df = pd.read_csv(file_path, encoding="latin1", low_memory=False)
+            #reindex ensures all target columns exist even if one year missed a minor field
+            df_filtered = df.reindex(columns=target_cols)
+            dfs.append(df_filtered)
+            print(f"  Loaded {yr} {base_name}: {len(df_filtered)} rows")
+    merged = pd.concat(dfs, ignore_index=True)
+    out_path = os.path.join(PROCESSED_DIR, output_name)
+    merged.to_csv(out_path, index=False)
+    print(f"Finished {output_name}: Total {len(merged)} rows\n")
 
 def main():
     os.makedirs(PROCESSED_DIR, exist_ok=True)
-
-    transform_file(
-        "accident.csv",
-        CRASH_COLUMNS,
-        "crashes.csv"
-    )
-
-    transform_file(
-        "vehicle.csv",
-        VEHICLE_COLUMNS,
-        "vehicles.csv"
-    )
-
-    transform_file(
-        "person.csv",
-        PERSON_COLUMNS,
-        "people.csv"
-    )
+    print("Transforming Crashes...")
+    process_entity("accident", CRASH_COLUMNS, "crashes.csv")
+    print("Transforming Vehicles...")
+    process_entity("vehicle", VEHICLE_COLUMNS, "vehicles.csv")
+    print("Transforming People...")
+    process_entity("person", PERSON_COLUMNS, "people.csv")
 
 if __name__ == "__main__":
     main()
