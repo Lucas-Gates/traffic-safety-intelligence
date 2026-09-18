@@ -32,7 +32,6 @@ else:
 st.markdown("---")
 
 st.subheader("State Rankings & Cumulative Fatality Share")
-
 limit = st.slider("Top N States to display:", min_value=5, max_value=50, value=15)
 res_states = requests.get(f"{API_BASE_URL}/analytics/state-rankings", params={"limit": limit})
 
@@ -49,3 +48,18 @@ if res_states.status_code == 200:
         template="plotly_white"
     )
     st.plotly_chart(fig_states, use_container_width=True)
+
+st.subheader("Crash Distribution by Hour: Rural vs. Urban")
+res_hourly = requests.get(f"{API_BASE_URL}/analytics/hourly-trends")
+if res_hourly.status_code == 200:
+    df_hourly = pd.DataFrame(res_hourly.json())
+    
+    fig_hourly = px.line(
+        df_hourly,
+        x="hour",
+        y=["rural_crashes", "urban_crashes"],
+        labels={"hour": "Hour of Day (0-23)", "value": "Crash Count", "variable": "Area Type"},
+        markers=True,
+        template="plotly_white"
+    )
+    st.plotly_chart(fig_hourly, use_container_width=True)
