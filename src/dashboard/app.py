@@ -3,7 +3,7 @@ import requests
 import pandas as pd
 import plotly.express as px
 
-API_BASE_URL = "localhost/api"
+API_BASE_URL = "http://127.0.0.1:8000/api"
 
 st.set_page_config(
     page_title="Traffic Safety Intelligence Platform",
@@ -63,3 +63,34 @@ if res_hourly.status_code == 200:
         template="plotly_white"
     )
     st.plotly_chart(fig_hourly, use_container_width=True)
+
+st.subheader("Contributing Factors by Vehicle Make")
+min_inv = st.number_input("Minimum Crash Involvements:", min_value=100, max_value=2000, value=500, step=100)
+res_makes = requests.get(f"{API_BASE_URL}/analytics/factors/vehicle-makes", params={"min_involvements": min_inv})
+if res_makes.status_code == 200:
+    df_makes = pd.DataFrame(res_makes.json())
+    
+    col_a, col_b = st.columns(2)
+    with col_a:
+        fig_speed = px.bar(
+            df_makes.sort_values(by="pct_speed_related", ascending=False).head(10),
+            x="pct_speed_related",
+            y="makename",
+            orientation="h",
+            labels={"pct_speed_related": "% Speed-Related", "makename": "Vehicle Make"},
+            title="Top 10 Makes by Speeding Rate (%)",
+            template="plotly_white"
+        )
+        st.plotly_chart(fig_speed, use_container_width=True)
+        
+    with col_b:
+        fig_alc = px.bar(
+            df_makes.sort_values(by="pct_alcohol_involved", ascending=False).head(10),
+            x="pct_alcohol_involved",
+            y="makename",
+            orientation="h",
+            labels={"pct_alcohol_involved": "% Alcohol-Involved", "makename": "Vehicle Make"},
+            title="Top 10 Makes by Alcohol Involvement Rate (%)",
+            template="plotly_white"
+        )
+        st.plotly_chart(fig_alc, use_container_width=True)
