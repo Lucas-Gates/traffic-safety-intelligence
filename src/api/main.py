@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Depends, Query
+from fastapi import FastAPI, Depends, HTTPException, Query
+import mysql.connector
 from src.database.connection import get_db
 
 app = FastAPI(
@@ -68,6 +69,28 @@ def get_hourly_trends(db=Depends(get_db)):
         ORDER BY hour ASC;
     """
     cursor.execute(query)
+    rows = cursor.fetchall()
+    cursor.close()
+    return rows
+
+@app.get("/api/analytics/factors/vehicle-makes")
+def get_vehicle_make_factors(min_involvements: int = 500, db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    query = """
+        SELECT 
+            v.makename,
+            COUNT(*) AS vehicles_involved,
+            SUM(CASE WHEN v.dr_drink = 1 THEN 1 ELSE 0 END) AS alcohol_involved_count,
+            ROUND(100.0 * SUM(CASE WHEN v.dr_drink = 1 THEN 1 ELSE 0 END) / COUNT(*), 2) AS pct_alcohol_involved,
+            SUM(CASE WHEN v.speedrel IN (2, 3, 4, 5) THEN 1 ELSE 0 END) AS speed_related_count,
+            ROUND(100.0 * SUM(CASE WHEN v.speedrel IN (2, 3, 4, 5) THEN 1 ELSE 0 END) / COUNT(*), 2) AS pct_speed_related
+        FROM vehicles v
+        WHERE v.makename IS NOT NULL AND v.makename != 'Unknown'
+        GROUP BY v.makename
+        HAVING COUNT(*) >= %s
+        ORDER BY vehicles_involved DESC;
+    """
+    cursor.execute(query, (min_involvements,))
     rows = cursor.fetchall()
     cursor.close()
     return rows
