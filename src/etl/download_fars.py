@@ -1,20 +1,23 @@
 import os
 import requests
 
-URL = "https://static.nhtsa.gov/nhtsa/downloads/FARS/2024/National/FARS2024NationalCSV.zip"
+YEARS = [2020, 2021, 2022, 2023, 2024]
 OUTPUT_DIR = "data/raw"
-OUTPUT_FILE = os.path.join(OUTPUT_DIR, "FARS2024NationalCSV.zip")
 
-
-def download_fars():
+def download_fars_years():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
-    response = requests.get(URL, timeout=60)
-    response.raise_for_status()
-    with open(OUTPUT_FILE, "wb") as file:
-        file.write(response.content)
-
-    print(f"Downloaded FARS data to {OUTPUT_FILE}")
-
+    for year in YEARS:
+        url = f"https://static.nhtsa.gov/nhtsa/downloads/FARS/{year}/National/FARS{year}NationalCSV.zip"
+        dest = os.path.join(OUTPUT_DIR, f"FARS{year}NationalCSV.zip")
+        if os.path.exists(dest):
+            print(f"Skipping {year}, already downloaded.")
+            continue
+        print(f"Downloading FARS {year}...")
+        res = requests.get(url, timeout=120)
+        res.raise_for_status()
+        with open(dest, "wb") as f:
+            f.write(res.content)
+        print(f"Saved {dest}")
 
 if __name__ == "__main__":
-    download_fars()
+    download_fars_years()
