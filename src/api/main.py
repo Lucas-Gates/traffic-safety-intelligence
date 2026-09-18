@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, Query
 from src.database.connection import get_db
 
 app = FastAPI(
@@ -25,3 +25,30 @@ def get_overview_stats(db=Depends(get_db)):
     result = cursor.fetchone()
     cursor.close()
     return result
+
+@app.get("/api/analytics/state-rankings")
+def get_state_rankings(limit: int = Query(15, ge=1, le=55), db=Depends(get_db)):
+    cursor = db.cursor(dictionary=True)
+    query = """
+        WITH state_summary AS (
+            SELECT 
+                statename,
+                COUNT(*) AS total_fatal_crashes,
+                SUM(fatals) AS total_fatalities
+            FROM crashes
+            GROUP BY statename
+        )
+        SELECT 
+            statename,
+            total_fatal_crashes,
+            total_fatalities,
+            DENSE_RANK() OVER (ORDER BY total_fatal_crashes DESC) AS crash_rank,
+            ROUND(100.0 * total_fatalities / SUM(total_fatalities) OVER (), 2) AS pct_of_national_fatalities
+        FROM state_summary
+        ORDER BY crash_rank ASC
+        LIMIT %s;
+    """
+    cursor.execute(query, (limit,))
+    rows = cursor.fetchall()
+    cursor.close()
+    return rows
