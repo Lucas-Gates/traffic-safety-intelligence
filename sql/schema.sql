@@ -6,7 +6,8 @@ DROP TABLE IF EXISTS vehicles;
 DROP TABLE IF EXISTS crashes;
 
 CREATE TABLE crashes (
-    st_case INT PRIMARY KEY,
+    year INT NOT NULL,
+    st_case INT NOT NULL,
     state INT NOT NULL,
     statename VARCHAR(100),
     county INT,
@@ -19,7 +20,6 @@ CREATE TABLE crashes (
     dayname VARCHAR(50),
     day_week INT,
     day_weekname VARCHAR(50),
-    year INT NOT NULL,
     hour INT,
     minute INT,
     tway_id VARCHAR(150),
@@ -49,11 +49,13 @@ CREATE TABLE crashes (
     weather INT,
     weathername VARCHAR(255),
     fatals INT NOT NULL DEFAULT 1,
+    PRIMARY KEY (year, st_case),
     INDEX idx_crashes_state (state),
     INDEX idx_crashes_year (year)
 );
 
 CREATE TABLE vehicles (
+    year INT NOT NULL,
     st_case INT NOT NULL,
     veh_no INT NOT NULL,
     state INT NOT NULL,
@@ -85,12 +87,13 @@ CREATE TABLE vehicles (
     acc_type INT,
     acc_typename VARCHAR(255),
     deaths INT NOT NULL DEFAULT 0,
-    PRIMARY KEY (st_case, veh_no),
-    CONSTRAINT fk_vehicles_crashes FOREIGN KEY (st_case) 
-        REFERENCES crashes (st_case) ON DELETE CASCADE
+    PRIMARY KEY (year, st_case, veh_no),
+    CONSTRAINT fk_vehicles_crashes FOREIGN KEY (year, st_case) 
+        REFERENCES crashes (year, st_case) ON DELETE CASCADE
 );
 
 CREATE TABLE people (
+    year INT NOT NULL,
     st_case INT NOT NULL,
     veh_no INT NOT NULL,
     per_no INT NOT NULL,
@@ -122,7 +125,7 @@ CREATE TABLE people (
     hospitalname VARCHAR(150),
     doa INT,
     doaname VARCHAR(100),
-    PRIMARY KEY (st_case, veh_no, per_no),
-    CONSTRAINT fk_people_crashes FOREIGN KEY (st_case) 
-        REFERENCES crashes (st_case) ON DELETE CASCADE
+    PRIMARY KEY (year, st_case, veh_no, per_no),
+    CONSTRAINT fk_people_crashes FOREIGN KEY (year, st_case) 
+        REFERENCES crashes (year, st_case) ON DELETE CASCADE
 );

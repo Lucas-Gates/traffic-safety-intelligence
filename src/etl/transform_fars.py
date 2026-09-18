@@ -7,6 +7,7 @@ PROCESSED_DIR = "data/processed"
 YEARS = [2020, 2021, 2022, 2023, 2024]
 
 CRASH_COLUMNS = [
+    "YEAR",
     "STATE",
     "STATENAME",
     "ST_CASE",
@@ -20,7 +21,6 @@ CRASH_COLUMNS = [
     "DAYNAME",
     "DAY_WEEK",
     "DAY_WEEKNAME",
-    "YEAR",
     "HOUR",
     "MINUTE",
     "TWAY_ID",
@@ -53,6 +53,7 @@ CRASH_COLUMNS = [
 ]
 
 VEHICLE_COLUMNS = [
+    "YEAR",
     "STATE",
     "ST_CASE",
     "VEH_NO",
@@ -87,6 +88,7 @@ VEHICLE_COLUMNS = [
 ]
 
 PERSON_COLUMNS = [
+    "YEAR",
     "STATE",
     "ST_CASE",
     "VEH_NO",
@@ -120,25 +122,44 @@ PERSON_COLUMNS = [
     "DOANAME"
 ]
 
-def find_file(year, base_name):
-    pattern = os.path.join(RAW_DIR, f"fars_{year}", "**", f"*{base_name}*")
-    matches = glob.glob(pattern, recursive=True)
-    for m in matches:
-        if m.lower().endswith(f"{base_name.lower()}.csv"):
-            return m
+def find_file(year, exact_name):
+    pattern = os.path.join(RAW_DIR, f"fars_{year}", "**", "*.csv")
+    for file_path in glob.glob(pattern, recursive=True):
+        base = os.path.basename(file_path).lower()
+        if base == f"{exact_name.lower()}.csv":
+            return file_path
     return None
 
-def process_entity(base_name, target_cols, output_name):
+def process_entity(target_filename, target_cols, output_name, dedupe_keys):
     dfs = []
     for yr in YEARS:
-        file_path = find_file(yr, base_name)
+        file_path = find_file(yr, target_filename)
         if file_path:
             df = pd.read_csv(file_path, encoding="latin1", low_memory=False)
-            #reindex ensures all target columns exist even if one year missed a minor field
-            df_filtered = df.reindex(columns=target_cols)
+            df.columns = [c.strip().upper() for c in df.columns]
+            if "YEAR" not in df.columns:
+                df["YEAR"] = yr
+            else:
+                df["YEAR"] = df["YEAR"].fillna(yr).astype(int)
+            if "STATE" not in df.columns and "STATE_CODE" in df.columns:
+                df["STATE"] = df["STATE_CODE"]
+            if "STATE" not in df.columns and "ST_CASE" in df.columns:
+                df["STATE"] = df["ST_CASE"].astype(str).str.zfill(6).str[:2].astype(int)
+            selected_data = {}
+            for col in target_cols:
+                if col in df.columns:
+                    selected_data[col] = df[col]
+                else:
+                    selected_data[col] = None
+            df_filtered = pd.DataFrame(selected_data)
             dfs.append(df_filtered)
-            print(f"  Loaded {yr} {base_name}: {len(df_filtered)} rows")
+            print(f"  Loaded {yr} {target_filename}: {len(df_filtered)} rows")
     merged = pd.concat(dfs, ignore_index=True)
+    initial_count = len(merged)
+    merged = merged.drop_duplicates(subset=dedupe_keys)
+    dropped = initial_count - len(merged)
+    if dropped > 0:
+        print(f"  Dropped {dropped} duplicate rows for {output_name}")
     out_path = os.path.join(PROCESSED_DIR, output_name)
     merged.to_csv(out_path, index=False)
     print(f"Finished {output_name}: Total {len(merged)} rows\n")
@@ -146,11 +167,11 @@ def process_entity(base_name, target_cols, output_name):
 def main():
     os.makedirs(PROCESSED_DIR, exist_ok=True)
     print("Transforming Crashes...")
-    process_entity("accident", CRASH_COLUMNS, "crashes.csv")
+    process_entity("accident", CRASH_COLUMNS, "crashes.csv", ["YEAR", "ST_CASE"])
     print("Transforming Vehicles...")
-    process_entity("vehicle", VEHICLE_COLUMNS, "vehicles.csv")
+    process_entity("vehicle", VEHICLE_COLUMNS, "vehicles.csv", ["YEAR", "ST_CASE", "VEH_NO"])
     print("Transforming People...")
-    process_entity("person", PERSON_COLUMNS, "people.csv")
+    process_entity("person", PERSON_COLUMNS, "people.csv", ["YEAR", "ST_CASE", "VEH_NO", "PER_NO"])
 
 if __name__ == "__main__":
     main()
