@@ -22,11 +22,16 @@ def fetch_overview():
 overview = fetch_overview()
 
 if overview:
+    total_crashes = overview.get("total_crashes") or 0
+    total_fatalities = overview.get("total_fatalities") or 0
+    total_vehicles = overview.get("total_vehicles") or 0
+    total_people = overview.get("total_people") or 0
+
     col1, col2, col3, col4 = st.columns(4)
-    col1.metric("Fatal Crashes", f"{overview['total_crashes']:,}")
-    col2.metric("Total Fatalities", f"{overview['total_fatalities']:,}")
-    col3.metric("Vehicles Involved", f"{overview['total_vehicles']:,}")
-    col4.metric("Persons Involved", f"{overview['total_people']:,}")
+    col1.metric("Fatal Crashes", f"{int(total_crashes):,}")
+    col2.metric("Total Fatalities", f"{int(total_fatalities):,}")
+    col3.metric("Vehicles Involved", f"{int(total_vehicles):,}")
+    col4.metric("Persons Involved", f"{int(total_people):,}")
 else:
     st.error("Failed to connect to the FastAPI backend. Ensure Uvicorn is running on port 8000.")
 
